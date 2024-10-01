@@ -1,10 +1,9 @@
 #pragma once
 
-#include "../../helpers/WLListener.hpp"
 #include "../../desktop/WLSurface.hpp"
 #include "../../macros.hpp"
-#include "../../helpers/Box.hpp"
-#include "../../helpers/signal/Listener.hpp"
+#include "../../helpers/math/Math.hpp"
+#include "../../helpers/signal/Signal.hpp"
 
 class CInputMethodPopupV2;
 
@@ -12,18 +11,18 @@ class CInputPopup {
   public:
     CInputPopup(SP<CInputMethodPopupV2> popup);
 
-    void         damageEntire();
-    void         damageSurface();
+    void                   damageEntire();
+    void                   damageSurface();
 
-    bool         isVecInPopup(const Vector2D& point);
+    bool                   isVecInPopup(const Vector2D& point);
 
-    CBox         globalBox();
-    wlr_surface* getWlrSurface();
+    CBox                   globalBox();
+    SP<CWLSurfaceResource> getSurface();
 
-    void         onCommit();
+    void                   onCommit();
 
   private:
-    CWLSurface*             queryOwner();
+    SP<CWLSurface>          queryOwner();
     void                    updateBox();
 
     void                    onDestroy();
@@ -31,9 +30,9 @@ class CInputPopup {
     void                    onUnmap();
 
     WP<CInputMethodPopupV2> popup;
-    CWLSurface              surface;
+    SP<CWLSurface>          surface;
     CBox                    lastBoxLocal;
-    uint64_t                lastMonitor = -1;
+    MONITORID               lastMonitor = MONITOR_INVALID;
 
     struct {
         CHyprSignalListener map;

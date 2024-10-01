@@ -5,7 +5,7 @@
 #include <cstdint>
 #include "WaylandProtocol.hpp"
 #include "wlr-gamma-control-unstable-v1.hpp"
-#include "../helpers/signal/Listener.hpp"
+#include "../helpers/signal/Signal.hpp"
 
 class CMonitor;
 
@@ -20,10 +20,10 @@ class CGammaControl {
 
   private:
     SP<CZwlrGammaControlV1> resource;
-    CMonitor*               pMonitor      = nullptr;
+    WP<CMonitor>            pMonitor;
     size_t                  gammaSize     = 0;
     bool                    gammaTableSet = false;
-    std::vector<uint16_t>   gammaTable;
+    std::vector<uint16_t>   gammaTable; // [r,g,b]+
 
     void                    onMonitorDestroy();
 

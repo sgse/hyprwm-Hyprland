@@ -7,12 +7,15 @@
 #include "../desktop/Popup.hpp"
 #include "AnimatedVariable.hpp"
 #include "../desktop/WLSurface.hpp"
-#include "signal/Listener.hpp"
-#include "Region.hpp"
+#include "signal/Signal.hpp"
+#include "math/Math.hpp"
 
 class CMonitor;
 class IPointer;
 class IKeyboard;
+class CWLSurfaceResource;
+
+AQUAMARINE_FORWARD(ISwitch);
 
 struct SRenderData {
     CMonitor* pMonitor;
@@ -20,9 +23,9 @@ struct SRenderData {
     double    x, y;
 
     // for iters
-    void*        data    = nullptr;
-    wlr_surface* surface = nullptr;
-    double       w, h;
+    void*                  data    = nullptr;
+    SP<CWLSurfaceResource> surface = nullptr;
+    double                 w, h;
 
     // for rounding
     bool dontRound = true;
@@ -50,39 +53,9 @@ struct SRenderData {
     PHLWINDOW pWindow;
 
     bool      popup = false;
-};
 
-struct SExtensionFindingData {
-    Vector2D      origin;
-    Vector2D      vec;
-    wlr_surface** found;
-};
-
-struct SSeat {
-    wlr_seat*     seat            = nullptr;
-    wl_client*    exclusiveClient = nullptr;
-
-    WP<IPointer>  mouse;
-    WP<IKeyboard> keyboard;
-};
-
-struct SDrag {
-    wlr_drag* drag = nullptr;
-
-    DYNLISTENER(destroy);
-
-    // Icon
-
-    bool           iconMapped = false;
-
-    wlr_drag_icon* dragIcon = nullptr;
-
-    Vector2D       pos;
-
-    DYNLISTENER(destroyIcon);
-    DYNLISTENER(mapIcon);
-    DYNLISTENER(unmapIcon);
-    DYNLISTENER(commitIcon);
+    // counts how many surfaces this pass has rendered
+    int surfaceCounter = 0;
 };
 
 struct SSwipeGesture {
@@ -99,14 +72,14 @@ struct SSwipeGesture {
 };
 
 struct SSwitchDevice {
-    wlr_input_device* pWlrDevice = nullptr;
+    WP<Aquamarine::ISwitch> pDevice;
 
-    int               status = -1; // uninitialized
-
-    DYNLISTENER(destroy);
-    DYNLISTENER(toggle);
+    struct {
+        CHyprSignalListener destroy;
+        CHyprSignalListener fire;
+    } listeners;
 
     bool operator==(const SSwitchDevice& other) const {
-        return pWlrDevice == other.pWlrDevice;
+        return pDevice == other.pDevice;
     }
 };

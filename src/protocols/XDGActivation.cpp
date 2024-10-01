@@ -1,9 +1,8 @@
 #include "XDGActivation.hpp"
 #include "../managers/TokenManager.hpp"
 #include "../Compositor.hpp"
+#include "core/Compositor.hpp"
 #include <algorithm>
-
-#define LOGM PROTO::activation->protoLog
 
 CXDGActivationToken::CXDGActivationToken(SP<CXdgActivationTokenV1> resource_) : resource(resource_) {
     if (!resource_->resource())
@@ -79,8 +78,8 @@ void CXDGActivationProtocol::bindManager(wl_client* client, void* data, uint32_t
         // remove token. It's been now spent.
         m_vSentTokens.erase(TOKEN);
 
-        wlr_surface* surf    = wlr_surface_from_resource(surface);
-        const auto   PWINDOW = g_pCompositor->getWindowFromSurface(surf);
+        SP<CWLSurfaceResource> surf    = CWLSurfaceResource::fromResource(surface);
+        const auto             PWINDOW = g_pCompositor->getWindowFromSurface(surf);
 
         if (!PWINDOW) {
             LOGM(WARN, "activate event for non-window or gone surface with token {}, ignoring", token);

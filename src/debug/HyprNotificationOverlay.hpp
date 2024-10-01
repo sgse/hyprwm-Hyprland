@@ -58,10 +58,7 @@ class CHyprNotificationOverlay {
     CMonitor*                                  m_pLastMonitor = nullptr;
     Vector2D                                   m_vecLastSize  = Vector2D(-1, -1);
 
-    CTexture                                   m_tTexture;
-
-    eIconBackend                               m_eIconBackend   = ICONS_BACKEND_NONE;
-    std::string                                m_szIconFontName = "Sans";
+    SP<CTexture>                               m_pTexture;
 };
 
 inline std::unique_ptr<CHyprNotificationOverlay> g_pHyprNotificationOverlay;

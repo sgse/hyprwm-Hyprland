@@ -34,6 +34,7 @@ runs:
           libglvnd \
           libinput \
           libliftoff \
+          libxcursor \
           libxcvt \
           libxfont2 \
           libxkbcommon \
@@ -67,6 +68,16 @@ runs:
         cmake --no-warn-unused-cli -DCMAKE_BUILD_TYPE:STRING=Release -DCMAKE_INSTALL_PREFIX:PATH=/usr -S . -B ./build
         cmake --build ./build --config Release --target all -j`nproc 2>/dev/null || getconf NPROCESSORS_CONF`
         cmake --install build
+
+    - name: Get hyprutils-git
+      shell: bash
+      run: |
+        git clone https://github.com/hyprwm/hyprutils && cd hyprutils && cmake -DCMAKE_BUILD_TYPE:STRING=Release -DCMAKE_INSTALL_PREFIX:PATH=/usr -B build && cmake --build build --target hyprutils && cmake --install build
+
+    - name: Get aquamarine-git
+      shell: bash
+      run: |
+        git clone https://github.com/hyprwm/aquamarine && cd aquamarine && cmake -DCMAKE_BUILD_TYPE:STRING=Release -DCMAKE_INSTALL_PREFIX:PATH=/usr -B build && cmake --build build --target aquamarine && cmake --install build
 
     - name: Get Xorg pacman pkgs
       shell: bash

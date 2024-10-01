@@ -1,6 +1,6 @@
 #include "HookSystem.hpp"
 #include "../debug/Log.hpp"
-#include "../helpers/VarList.hpp"
+#include "../helpers/varlist/VarList.hpp"
 #include "../managers/TokenManager.hpp"
 #include "../Compositor.hpp"
 
@@ -81,7 +81,7 @@ CFunctionHook::SAssembly CFunctionHook::fixInstructionProbeRIPCalls(const SInstr
     std::vector<char> finalBytes;
     finalBytes.resize(probe.len);
 
-    for (auto& len : probe.insSizes) {
+    for (auto const& len : probe.insSizes) {
 
         // copy original bytes to our finalBytes
         for (size_t i = 0; i < len; ++i) {

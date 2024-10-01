@@ -4,19 +4,20 @@
 #include "../defines.hpp"
 #include "WLSurface.hpp"
 #include "../helpers/AnimatedVariable.hpp"
-#include "wlr-layer-shell-unstable-v1-protocol.h"
 
 struct SLayerRule {
     std::string targetNamespace = "";
     std::string rule            = "";
 };
 
+class CLayerShellResource;
+
 class CLayerSurface {
   public:
-    static PHLLS create(wlr_layer_surface_v1*);
+    static PHLLS create(SP<CLayerShellResource>);
 
   private:
-    CLayerSurface();
+    CLayerSurface(SP<CLayerShellResource>);
 
   public:
     ~CLayerSurface();
@@ -30,51 +31,53 @@ class CLayerSurface {
     CAnimatedVariable<Vector2D> realSize;
     CAnimatedVariable<float>    alpha;
 
-    wlr_layer_surface_v1*       layerSurface;
+    WP<CLayerShellResource>     layerSurface;
     wl_list                     link;
 
-    bool                        keyboardExclusive = false;
+    // the header providing the enum type cannot be imported here
+    int                        interactivity = 0;
 
-    CWLSurface                  surface;
+    SP<CWLSurface>             surface;
 
-    bool                        mapped = false;
+    bool                       mapped = false;
+    uint32_t                   layer  = 0;
 
-    int                         monitorID = -1;
+    MONITORID                  monitorID = -1;
 
-    bool                        fadingOut     = false;
-    bool                        readyToDelete = false;
-    bool                        noProcess     = false;
-    bool                        noAnimations  = false;
+    bool                       fadingOut     = false;
+    bool                       readyToDelete = false;
+    bool                       noProcess     = false;
+    bool                       noAnimations  = false;
 
-    bool                        forceBlur        = false;
-    bool                        forceBlurPopups  = false;
-    int                         xray             = -1;
-    bool                        ignoreAlpha      = false;
-    float                       ignoreAlphaValue = 0.f;
-    bool                        dimAround        = false;
+    bool                       forceBlur        = false;
+    bool                       forceBlurPopups  = false;
+    int64_t                    xray             = -1;
+    bool                       ignoreAlpha      = false;
+    float                      ignoreAlphaValue = 0.f;
+    bool                       dimAround        = false;
+    int64_t                    order            = 0;
 
-    std::optional<std::string>  animationStyle;
+    std::optional<std::string> animationStyle;
 
-    zwlr_layer_shell_v1_layer   layer;
+    PHLLSREF                   self;
 
-    PHLLSREF                    self;
+    CBox                       geometry = {0, 0, 0, 0};
+    Vector2D                   position;
+    std::string                szNamespace = "";
+    std::unique_ptr<CPopup>    popupHead;
 
-    CBox                        geometry = {0, 0, 0, 0};
-    Vector2D                    position;
-    std::string                 szNamespace = "";
-
-    void                        onDestroy();
-    void                        onMap();
-    void                        onUnmap();
-    void                        onCommit();
+    void                       onDestroy();
+    void                       onMap();
+    void                       onUnmap();
+    void                       onCommit();
 
   private:
-    std::unique_ptr<CPopup> popupHead;
-
-    DYNLISTENER(destroyLayerSurface);
-    DYNLISTENER(mapLayerSurface);
-    DYNLISTENER(unmapLayerSurface);
-    DYNLISTENER(commitLayerSurface);
+    struct {
+        CHyprSignalListener destroy;
+        CHyprSignalListener map;
+        CHyprSignalListener unmap;
+        CHyprSignalListener commit;
+    } listeners;
 
     void registerCallbacks();
 

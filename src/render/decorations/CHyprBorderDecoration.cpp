@@ -1,6 +1,7 @@
 #include "CHyprBorderDecoration.hpp"
 #include "../../Compositor.hpp"
 #include "../../config/ConfigValue.hpp"
+#include "../../managers/eventLoop/EventLoopManager.hpp"
 
 CHyprBorderDecoration::CHyprBorderDecoration(PHLWINDOW pWindow) : IHyprWindowDecoration(pWindow) {
     m_pWindow = pWindow;
@@ -82,8 +83,17 @@ eDecorationType CHyprBorderDecoration::getDecorationType() {
 }
 
 void CHyprBorderDecoration::updateWindow(PHLWINDOW) {
-    if (m_pWindow->getRealBorderSize() != m_seExtents.topLeft.x)
-        g_pDecorationPositioner->repositionDeco(this);
+    auto borderSize = m_pWindow->getRealBorderSize();
+
+    if (borderSize == m_iLastBorderSize)
+        return;
+
+    if (borderSize <= 0 && m_iLastBorderSize <= 0)
+        return;
+
+    m_iLastBorderSize = borderSize;
+
+    g_pDecorationPositioner->repositionDeco(this);
 }
 
 void CHyprBorderDecoration::damageEntire() {
@@ -108,7 +118,7 @@ void CHyprBorderDecoration::damageEntire() {
     CRegion borderRegion(surfaceBoxExpandedBorder);
     borderRegion.subtract(surfaceBoxShrunkRounding);
 
-    for (auto& m : g_pCompositor->m_vMonitors) {
+    for (auto const& m : g_pCompositor->m_vMonitors) {
         if (!g_pHyprRenderer->shouldRenderWindow(m_pWindow.lock(), m.get())) {
             const CRegion monitorRegion({m->vecPosition, m->vecSize});
             borderRegion.subtract(monitorRegion);
@@ -133,5 +143,5 @@ std::string CHyprBorderDecoration::getDisplayName() {
 }
 
 bool CHyprBorderDecoration::doesntWantBorders() {
-    return !m_pWindow->m_sSpecialRenderData.border || m_pWindow->m_bX11DoesntWantBorders || m_pWindow->getRealBorderSize() == 0;
+    return m_pWindow->m_sWindowData.noBorder.valueOrDefault() || m_pWindow->m_bX11DoesntWantBorders || m_pWindow->getRealBorderSize() == 0;
 }

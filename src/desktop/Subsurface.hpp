@@ -5,6 +5,7 @@
 #include "WLSurface.hpp"
 
 class CPopup;
+class CWLSubsurfaceResource;
 
 class CSubsurface {
   public:
@@ -13,8 +14,8 @@ class CSubsurface {
     CSubsurface(CPopup* pOwner);
 
     // real nodes
-    CSubsurface(wlr_subsurface* pSubsurface, PHLWINDOW pOwner);
-    CSubsurface(wlr_subsurface* pSubsurface, CPopup* pOwner);
+    CSubsurface(SP<CWLSubsurfaceResource> pSubsurface, PHLWINDOW pOwner);
+    CSubsurface(SP<CWLSubsurfaceResource> pSubsurface, CPopup* pOwner);
 
     ~CSubsurface();
 
@@ -25,7 +26,7 @@ class CSubsurface {
 
     void     onCommit();
     void     onDestroy();
-    void     onNewSubsurface(wlr_subsurface* pSubsurface);
+    void     onNewSubsurface(SP<CWLSubsurfaceResource> pSubsurface);
     void     onMap();
     void     onUnmap();
 
@@ -34,15 +35,17 @@ class CSubsurface {
     void     recheckDamageForSubsurfaces();
 
   private:
-    DYNLISTENER(destroySubsurface);
-    DYNLISTENER(commitSubsurface);
-    DYNLISTENER(newSubsurface);
-    DYNLISTENER(mapSubsurface);
-    DYNLISTENER(unmapSubsurface);
+    struct {
+        CHyprSignalListener destroySubsurface;
+        CHyprSignalListener commitSubsurface;
+        CHyprSignalListener mapSubsurface;
+        CHyprSignalListener unmapSubsurface;
+        CHyprSignalListener newSubsurface;
+    } listeners;
 
-    wlr_subsurface* m_pSubsurface = nullptr;
-    CWLSurface      m_sWLSurface;
-    Vector2D        m_vLastSize = {};
+    WP<CWLSubsurfaceResource> m_pSubsurface;
+    SP<CWLSurface>            m_pWLSurface;
+    Vector2D                  m_vLastSize = {};
 
     // if nullptr, means it's a dummy node
     CSubsurface*                              m_pParent = nullptr;
@@ -55,6 +58,6 @@ class CSubsurface {
     bool                                      m_bInert = false;
 
     void                                      initSignals();
-    void                                      initExistingSubsurfaces(wlr_surface* pSurface);
+    void                                      initExistingSubsurfaces(SP<CWLSurfaceResource> pSurface);
     void                                      checkSiblingDamage();
 };

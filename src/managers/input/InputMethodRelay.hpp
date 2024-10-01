@@ -3,14 +3,14 @@
 #include <list>
 #include "../../defines.hpp"
 #include "../../helpers/WLClasses.hpp"
-#include "../../helpers/signal/Listener.hpp"
+#include "../../helpers/signal/Signal.hpp"
 #include "TextInput.hpp"
 #include "InputMethodPopup.hpp"
 #include <any>
 
 class CInputManager;
 class CHyprRenderer;
-struct STextInputV1;
+class CTextInputV1;
 class CInputMethodV2;
 
 class CInputMethodRelay {
@@ -18,23 +18,23 @@ class CInputMethodRelay {
     CInputMethodRelay();
 
     void               onNewIME(SP<CInputMethodV2>);
-    void               onNewTextInput(std::any tiv3);
-    void               onNewTextInput(STextInputV1* pTIV1);
+    void               onNewTextInput(WP<CTextInputV3> tiv3);
+    void               onNewTextInput(WP<CTextInputV1> pTIV1);
 
-    void               activateIME(CTextInput* pInput);
-    void               deactivateIME(CTextInput* pInput);
+    void               activateIME(CTextInput* pInput, bool shouldCommit = true);
+    void               deactivateIME(CTextInput* pInput, bool shouldCommit = true);
     void               commitIMEState(CTextInput* pInput);
     void               removeTextInput(CTextInput* pInput);
 
-    void               onKeyboardFocus(wlr_surface*);
+    void               onKeyboardFocus(SP<CWLSurfaceResource>);
 
     CTextInput*        getFocusedTextInput();
 
-    void               setIMEPopupFocus(CInputPopup*, wlr_surface*);
+    void               setIMEPopupFocus(CInputPopup*, SP<CWLSurfaceResource>);
     void               removePopup(CInputPopup*);
 
     CInputPopup*       popupFromCoords(const Vector2D& point);
-    CInputPopup*       popupFromSurface(const wlr_surface* surface);
+    CInputPopup*       popupFromSurface(const SP<CWLSurfaceResource> surface);
 
     void               updateAllPopups();
 
@@ -44,10 +44,11 @@ class CInputMethodRelay {
     std::vector<std::unique_ptr<CTextInput>>  m_vTextInputs;
     std::vector<std::unique_ptr<CInputPopup>> m_vIMEPopups;
 
-    wlr_surface*                              m_pLastKbFocus = nullptr;
+    WP<CWLSurfaceResource>                    m_pLastKbFocus;
 
     struct {
         CHyprSignalListener newTIV3;
+        CHyprSignalListener newTIV1;
         CHyprSignalListener newIME;
         CHyprSignalListener commitIME;
         CHyprSignalListener destroyIME;
@@ -57,6 +58,6 @@ class CInputMethodRelay {
     friend class CHyprRenderer;
     friend class CInputManager;
     friend class CTextInputV1ProtocolManager;
-    friend struct CTextInput;
+    friend class CTextInput;
     friend class CHyprRenderer;
 };

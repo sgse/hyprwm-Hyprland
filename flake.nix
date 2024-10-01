@@ -7,6 +7,14 @@
     # <https://github.com/nix-systems/nix-systems>
     systems.url = "github:nix-systems/default-linux";
 
+    aquamarine = {
+      url = "github:hyprwm/aquamarine";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.systems.follows = "systems";
+      inputs.hyprutils.follows = "hyprutils";
+      inputs.hyprwayland-scanner.follows = "hyprwayland-scanner";
+    };
+
     hyprcursor = {
       url = "github:hyprwm/hyprcursor";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -14,8 +22,21 @@
       inputs.hyprlang.follows = "hyprlang";
     };
 
+    hyprland-protocols = {
+      url = "github:hyprwm/hyprland-protocols";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.systems.follows = "systems";
+    };
+
     hyprlang = {
       url = "github:hyprwm/hyprlang";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.systems.follows = "systems";
+      inputs.hyprutils.follows = "hyprutils";
+    };
+
+    hyprutils = {
+      url = "github:hyprwm/hyprutils";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.systems.follows = "systems";
     };
@@ -31,6 +52,8 @@
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.systems.follows = "systems";
       inputs.hyprlang.follows = "hyprlang";
+      inputs.hyprutils.follows = "hyprutils";
+      inputs.hyprwayland-scanner.follows = "hyprwayland-scanner";
     };
   };
 
@@ -45,6 +68,15 @@
     pkgsFor = eachSystem (system:
       import nixpkgs {
         localSystem = system;
+        overlays = with self.overlays; [
+          hyprland-packages
+          hyprland-extras
+        ];
+      });
+    pkgsCrossFor = eachSystem (system: crossSystem:
+      import nixpkgs {
+        localSystem = system;
+        crossSystem = crossSystem;
         overlays = with self.overlays; [
           hyprland-packages
           hyprland-extras
@@ -74,21 +106,19 @@
         # hyprland-extras
         
         xdg-desktop-portal-hyprland
-        # dependencies
-        
-        hyprland-protocols
         ;
+      hyprland-cross = (pkgsCrossFor.${system} "aarch64-linux").hyprland;
     });
 
     devShells = eachSystem (system: {
       default =
         pkgsFor.${system}.mkShell.override {
-          stdenv = pkgsFor.${system}.gcc13Stdenv;
+          inherit (self.packages.${system}.default) stdenv;
         } {
           name = "hyprland-shell";
-          nativeBuildInputs = with pkgsFor.${system}; [expat libxml2];
           hardeningDisable = ["fortify"];
           inputsFrom = [pkgsFor.${system}.hyprland];
+          packages = [pkgsFor.${system}.clang-tools];
         };
     });
 
@@ -96,10 +126,5 @@
 
     nixosModules.default = import ./nix/module.nix inputs;
     homeManagerModules.default = import ./nix/hm-module.nix self;
-  };
-
-  nixConfig = {
-    extra-substituters = ["https://hyprland.cachix.org"];
-    extra-trusted-public-keys = ["hyprland.cachix.org-1:a7pgxzMz7+chwVL3/pzj6jIBMioiJM7ypFP8PwtkuGc="];
   };
 }

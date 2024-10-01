@@ -7,15 +7,17 @@
 #include "WaylandProtocol.hpp"
 #include "text-input-unstable-v3.hpp"
 #include "../helpers/signal/Signal.hpp"
-#include "../helpers/Box.hpp"
+#include "../helpers/math/Math.hpp"
+
+class CWLSurfaceResource;
 
 class CTextInputV3 {
   public:
     CTextInputV3(SP<CZwpTextInputV3> resource_);
     ~CTextInputV3();
 
-    void       enter(wlr_surface* surf);
-    void       leave(wlr_surface* surf);
+    void       enter(SP<CWLSurfaceResource> surf);
+    void       leave(SP<CWLSurfaceResource> surf);
     void       preeditString(const std::string& text, int32_t cursorBegin, int32_t cursorEnd);
     void       commitString(const std::string& text);
     void       deleteSurroundingText(uint32_t beforeLength, uint32_t afterLength);
@@ -29,6 +31,7 @@ class CTextInputV3 {
         CSignal onCommit;
         CSignal enable;
         CSignal disable;
+        CSignal reset;
         CSignal destroy;
     } events;
 
@@ -51,7 +54,11 @@ class CTextInputV3 {
             CBox cursorBox;
         } box;
 
-        bool                      enabled = false;
+        struct {
+            bool isEnablePending  = false;
+            bool isDisablePending = false;
+            bool value            = false;
+        } enabled;
 
         zwpTextInputV3ChangeCause cause = ZWP_TEXT_INPUT_V3_CHANGE_CAUSE_INPUT_METHOD;
 

@@ -1,10 +1,11 @@
 #include "SessionLock.hpp"
 #include "../Compositor.hpp"
+#include "../managers/SeatManager.hpp"
 #include "FractionalScale.hpp"
+#include "core/Compositor.hpp"
+#include "core/Output.hpp"
 
-#define LOGM PROTO::sessionLock->protoLog
-
-CSessionLockSurface::CSessionLockSurface(SP<CExtSessionLockSurfaceV1> resource_, wlr_surface* surface_, CMonitor* pMonitor_, WP<CSessionLock> owner_) :
+CSessionLockSurface::CSessionLockSurface(SP<CExtSessionLockSurfaceV1> resource_, SP<CWLSurfaceResource> surface_, CMonitor* pMonitor_, WP<CSessionLock> owner_) :
     resource(resource_), sessionLock(owner_), pSurface(surface_), pMonitor(pMonitor_) {
     if (!resource->resource())
         return;
@@ -20,45 +21,38 @@ CSessionLockSurface::CSessionLockSurface(SP<CExtSessionLockSurfaceV1> resource_,
 
     resource->setAckConfigure([this](CExtSessionLockSurfaceV1* r, uint32_t serial) { ackdConfigure = true; });
 
-    hyprListener_surfaceCommit.initCallback(
-        &pSurface->events.commit,
-        [this](void* owner, void* data) {
-            if (pSurface->pending.buffer_width <= 0 || pSurface->pending.buffer_height <= 0) {
-                LOGM(ERR, "SessionLock attached a null buffer");
-                resource->error(EXT_SESSION_LOCK_SURFACE_V1_ERROR_NULL_BUFFER, "Null buffer attached");
-                return;
-            }
+    listeners.surfaceCommit = pSurface->events.commit.registerListener([this](std::any d) {
+        if (!pSurface->current.texture) {
+            LOGM(ERR, "SessionLock attached a null buffer");
+            resource->error(EXT_SESSION_LOCK_SURFACE_V1_ERROR_NULL_BUFFER, "Null buffer attached");
+            return;
+        }
 
-            if (!ackdConfigure) {
-                LOGM(ERR, "SessionLock committed without an ack");
-                resource->error(EXT_SESSION_LOCK_SURFACE_V1_ERROR_COMMIT_BEFORE_FIRST_ACK, "Committed surface before first ack");
-                return;
-            }
+        if (!ackdConfigure) {
+            LOGM(ERR, "SessionLock committed without an ack");
+            resource->error(EXT_SESSION_LOCK_SURFACE_V1_ERROR_COMMIT_BEFORE_FIRST_ACK, "Committed surface before first ack");
+            return;
+        }
 
-            if (committed)
-                events.commit.emit();
-            else {
-                wlr_surface_map(pSurface);
-                events.map.emit();
-            }
-            committed = true;
-        },
-        this, "SessionLockSurface");
+        if (committed)
+            events.commit.emit();
+        else {
+            pSurface->map();
+            events.map.emit();
+        }
+        committed = true;
+    });
 
-    hyprListener_surfaceDestroy.initCallback(
-        &pSurface->events.destroy,
-        [this](void* owner, void* data) {
-            LOGM(WARN, "SessionLockSurface object remains but surface is being destroyed???");
-            wlr_surface_unmap(pSurface);
-            hyprListener_surfaceCommit.removeCallback();
-            hyprListener_surfaceDestroy.removeCallback();
+    listeners.surfaceDestroy = pSurface->events.destroy.registerListener([this](std::any d) {
+        LOGM(WARN, "SessionLockSurface object remains but surface is being destroyed???");
+        pSurface->unmap();
+        listeners.surfaceCommit.reset();
+        listeners.surfaceDestroy.reset();
+        if (g_pCompositor->m_pLastFocus == pSurface)
+            g_pCompositor->m_pLastFocus.reset();
 
-            if (g_pCompositor->m_pLastFocus == pSurface)
-                g_pCompositor->m_pLastFocus = nullptr;
-
-            pSurface = nullptr;
-        },
-        this, "SessionLockSurface");
+        pSurface.reset();
+    });
 
     PROTO::fractional->sendScale(surface_, pMonitor_->scale);
 
@@ -69,14 +63,14 @@ CSessionLockSurface::CSessionLockSurface(SP<CExtSessionLockSurfaceV1> resource_,
 
 CSessionLockSurface::~CSessionLockSurface() {
     if (pSurface && pSurface->mapped)
-        wlr_surface_unmap(pSurface);
-    hyprListener_surfaceCommit.removeCallback();
-    hyprListener_surfaceDestroy.removeCallback();
+        pSurface->unmap();
+    listeners.surfaceCommit.reset();
+    listeners.surfaceDestroy.reset();
     events.destroy.emit(); // just in case.
 }
 
 void CSessionLockSurface::sendConfigure() {
-    const auto SERIAL = wlr_seat_client_next_serial(wlr_seat_client_for_wl_client(g_pCompositor->m_sSeat.seat, resource->client()));
+    const auto SERIAL = g_pSeatManager->nextSerial(g_pSeatManager->seatResourceForClient(resource->client()));
     resource->sendConfigure(SERIAL, pMonitor->vecSize.x, pMonitor->vecSize.y);
 }
 
@@ -92,8 +86,8 @@ CMonitor* CSessionLockSurface::monitor() {
     return pMonitor;
 }
 
-wlr_surface* CSessionLockSurface::surface() {
-    return pSurface;
+SP<CWLSurfaceResource> CSessionLockSurface::surface() {
+    return pSurface.lock();
 }
 
 CSessionLock::CSessionLock(SP<CExtSessionLockV1> resource_) : resource(resource_) {
@@ -118,9 +112,11 @@ CSessionLock::CSessionLock(SP<CExtSessionLockV1> resource_) : resource(resource_
             return;
         }
 
-        events.unlockAndDestroy.emit();
-        inert                      = true;
         PROTO::sessionLock->locked = false;
+
+        events.unlockAndDestroy.emit();
+
+        inert = true;
         PROTO::sessionLock->destroyResource(this);
     });
 }
@@ -179,13 +175,6 @@ void CSessionLockProtocol::onLock(CExtSessionLockManagerV1* pMgr, uint32_t id) {
         return;
     }
 
-    if (m_vLocks.size() > 1) {
-        LOGM(ERR, "Tried to lock a locked session");
-        RESOURCE->inert = true;
-        RESOURCE->resource->sendFinished();
-        return;
-    }
-
     events.newLock.emit(RESOURCE);
 
     locked = true;
@@ -194,11 +183,11 @@ void CSessionLockProtocol::onLock(CExtSessionLockManagerV1* pMgr, uint32_t id) {
 void CSessionLockProtocol::onGetLockSurface(CExtSessionLockV1* lock, uint32_t id, wl_resource* surface, wl_resource* output) {
     LOGM(LOG, "New sessionLockSurface with id {}", id);
 
-    auto             PSURFACE = wlr_surface_from_resource(surface);
-    auto             PMONITOR = g_pCompositor->getMonitorFromOutput(wlr_output_from_resource(output));
+    auto             PSURFACE = CWLSurfaceResource::fromResource(surface);
+    auto             PMONITOR = CWLOutputResource::fromResource(output)->monitor.get();
 
     SP<CSessionLock> sessionLock;
-    for (auto& l : m_vLocks) {
+    for (auto const& l : m_vLocks) {
         if (l->resource.get() == lock) {
             sessionLock = l;
             break;

@@ -1,7 +1,6 @@
 #include "OutputPower.hpp"
 #include "../Compositor.hpp"
-
-#define LOGM PROTO::outputPower->protoLog
+#include "core/Output.hpp"
 
 COutputPower::COutputPower(SP<CZwlrOutputPowerV1> resource_, CMonitor* pMonitor_) : resource(resource_), pMonitor(pMonitor_) {
     if (!resource->resource())
@@ -16,7 +15,7 @@ COutputPower::COutputPower(SP<CZwlrOutputPowerV1> resource_, CMonitor* pMonitor_
 
         pMonitor->dpmsStatus = mode == ZWLR_OUTPUT_POWER_V1_MODE_ON;
 
-        wlr_output_state_set_enabled(pMonitor->state.wlr(), pMonitor->dpmsStatus);
+        pMonitor->output->state->setEnabled(mode == ZWLR_OUTPUT_POWER_V1_MODE_ON);
 
         if (!pMonitor->state.commit())
             LOGM(ERR, "Couldn't set dpms to {} for {}", pMonitor->dpmsStatus, pMonitor->szName);
@@ -61,15 +60,15 @@ void COutputPowerProtocol::destroyOutputPower(COutputPower* power) {
 
 void COutputPowerProtocol::onGetOutputPower(CZwlrOutputPowerManagerV1* pMgr, uint32_t id, wl_resource* output) {
 
-    const auto PMONITOR = g_pCompositor->getMonitorFromOutput(wlr_output_from_resource(output));
+    const auto OUTPUT = CWLOutputResource::fromResource(output);
 
-    if (!PMONITOR) {
+    if (!OUTPUT) {
         pMgr->error(0, "Invalid output resource");
         return;
     }
 
     const auto CLIENT   = pMgr->client();
-    const auto RESOURCE = m_vOutputPowers.emplace_back(std::make_unique<COutputPower>(makeShared<CZwlrOutputPowerV1>(CLIENT, pMgr->version(), id), PMONITOR)).get();
+    const auto RESOURCE = m_vOutputPowers.emplace_back(std::make_unique<COutputPower>(makeShared<CZwlrOutputPowerV1>(CLIENT, pMgr->version(), id), OUTPUT->monitor.get())).get();
 
     if (!RESOURCE->good()) {
         pMgr->noMemory();

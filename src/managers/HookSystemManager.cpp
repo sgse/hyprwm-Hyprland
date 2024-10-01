@@ -28,9 +28,9 @@ void CHookSystemManager::emit(std::vector<SCallbackFNPtr>* const callbacks, SCal
         return;
 
     std::vector<HANDLE> faultyHandles;
-    bool                needsDeadCleanup = false;
+    volatile bool       needsDeadCleanup = false;
 
-    for (auto& cb : *callbacks) {
+    for (auto const& cb : *callbacks) {
 
         m_bCurrentEventPlugin = false;
 
@@ -70,7 +70,7 @@ void CHookSystemManager::emit(std::vector<SCallbackFNPtr>* const callbacks, SCal
         std::erase_if(*callbacks, [](const auto& fn) { return !fn.fn.lock(); });
 
     if (!faultyHandles.empty()) {
-        for (auto& h : faultyHandles)
+        for (auto const& h : faultyHandles)
             g_pPluginSystem->unloadPlugin(g_pPluginSystem->getPluginByHandle(h), true);
     }
 }

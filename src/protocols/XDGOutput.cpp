@@ -1,6 +1,8 @@
 #include "XDGOutput.hpp"
 #include "../Compositor.hpp"
 #include "../config/ConfigValue.hpp"
+#include "../xwayland/XWayland.hpp"
+#include "core/Output.hpp"
 
 #define OUTPUT_MANAGER_VERSION                   3
 #define OUTPUT_DONE_DEPRECATED_SINCE_VERSION     3
@@ -9,8 +11,6 @@
 #define OUTPUT_DESCRIPTION_SINCE_VERSION         2
 
 //
-
-#define LOGM PROTO::xdgOutput->protoLog
 
 void CXDGOutputProtocol::onManagerResourceDestroy(wl_resource* res) {
     std::erase_if(m_vManagerResources, [&](const auto& other) { return other->resource() == res; });
@@ -39,7 +39,7 @@ CXDGOutputProtocol::CXDGOutputProtocol(const wl_interface* iface, const int& ver
     static auto P2 = g_pHookSystem->hookDynamic("configReloaded", [this](void* self, SCallbackInfo& info, std::any param) { this->updateAllOutputs(); });
     static auto P3 = g_pHookSystem->hookDynamic("monitorRemoved", [this](void* self, SCallbackInfo& info, std::any param) {
         const auto PMONITOR = std::any_cast<CMonitor*>(param);
-        for (auto& o : m_vXDGOutputs) {
+        for (auto const& o : m_vXDGOutputs) {
             if (o->monitor == PMONITOR)
                 o->monitor = nullptr;
         }
@@ -47,15 +47,15 @@ CXDGOutputProtocol::CXDGOutputProtocol(const wl_interface* iface, const int& ver
 }
 
 void CXDGOutputProtocol::onManagerGetXDGOutput(CZxdgOutputManagerV1* mgr, uint32_t id, wl_resource* outputResource) {
-    const auto  OUTPUT = wlr_output_from_resource(outputResource);
+    const auto  OUTPUT = CWLOutputResource::fromResource(outputResource);
 
-    const auto  PMONITOR = g_pCompositor->getMonitorFromOutput(OUTPUT);
+    const auto  PMONITOR = OUTPUT->monitor.get();
 
     const auto  CLIENT = mgr->client();
 
     CXDGOutput* pXDGOutput = m_vXDGOutputs.emplace_back(std::make_unique<CXDGOutput>(makeShared<CZxdgOutputV1>(CLIENT, mgr->version(), id), PMONITOR)).get();
 #ifndef NO_XWAYLAND
-    if (g_pXWaylandManager->m_sWLRXWayland && g_pXWaylandManager->m_sWLRXWayland->server && g_pXWaylandManager->m_sWLRXWayland->server->client == CLIENT)
+    if (g_pXWayland && g_pXWayland->pServer && g_pXWayland->pServer->xwaylandClient == CLIENT)
         pXDGOutput->isXWayland = true;
 #endif
     pXDGOutput->client = CLIENT;
@@ -73,8 +73,8 @@ void CXDGOutputProtocol::onManagerGetXDGOutput(CZxdgOutputManagerV1* mgr, uint32
 
     if (XDGVER >= OUTPUT_NAME_SINCE_VERSION)
         pXDGOutput->resource->sendName(PMONITOR->szName.c_str());
-    if (XDGVER >= OUTPUT_DESCRIPTION_SINCE_VERSION && PMONITOR->output->description)
-        pXDGOutput->resource->sendDescription(PMONITOR->output->description);
+    if (XDGVER >= OUTPUT_DESCRIPTION_SINCE_VERSION && !PMONITOR->output->description.empty())
+        pXDGOutput->resource->sendDescription(PMONITOR->output->description.c_str());
 
     pXDGOutput->sendDetails();
 
@@ -84,14 +84,14 @@ void CXDGOutputProtocol::onManagerGetXDGOutput(CZxdgOutputManagerV1* mgr, uint32
 }
 
 void CXDGOutputProtocol::updateAllOutputs() {
-    for (auto& o : m_vXDGOutputs) {
+    for (auto const& o : m_vXDGOutputs) {
 
         if (!o->monitor)
             continue;
 
         o->sendDetails();
 
-        wlr_output_schedule_done(o->monitor->output);
+        o->monitor->scheduleDone();
     }
 }
 

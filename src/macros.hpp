@@ -4,9 +4,7 @@
 #include <csignal>
 #include <utility>
 
-#include "helpers/memory/WeakPtr.hpp"
-
-#define UP std::unique_ptr
+#include "helpers/memory/Memory.hpp"
 
 #ifndef NDEBUG
 #ifdef HYPRLAND_DEBUG
@@ -26,7 +24,10 @@
 
 #define STRVAL_EMPTY "[[EMPTY]]"
 
-#define WORKSPACE_INVALID -1L
+#define WORKSPACE_INVALID     -1L
+#define WORKSPACE_NOT_CHANGED -101
+
+#define MONITOR_INVALID -1L
 
 #define LISTENER(name)                                                                                                                                                             \
     void               listener_##name(wl_listener*, void*);                                                                                                                       \
@@ -35,14 +36,13 @@
 #define DYNLISTENER(name)      CHyprWLListener hyprListener_##name
 #define DYNMULTILISTENER(name) wl_listener listen_##name
 
-#define VECINRECT(vec, x1, y1, x2, y2) ((vec).x >= (x1) && (vec).x <= (x2) && (vec).y >= (y1) && (vec).y <= (y2))
+#define VECINRECT(vec, x1, y1, x2, y2) ((vec).x >= (x1) && (vec).x < (x2) && (vec).y >= (y1) && (vec).y < (y2))
 
 #define DELTALESSTHAN(a, b, delta) (abs((a) - (b)) < (delta))
 
 #define STICKS(a, b) abs((a) - (b)) < 2
 
-#define HYPRATOM(name)                                                                                                                                                             \
-    { name, 0 }
+#define HYPRATOM(name) {name, 0}
 
 #define RASSERT(expr, reason, ...)                                                                                                                                                 \
     if (!(expr)) {                                                                                                                                                                 \
@@ -90,3 +90,25 @@
 #else
 #define UNREACHABLE() std::unreachable();
 #endif
+
+#define GLCALL(__CALL__)                                                                                                                                                           \
+    {                                                                                                                                                                              \
+        __CALL__;                                                                                                                                                                  \
+        auto err = glGetError();                                                                                                                                                   \
+        if (err != GL_NO_ERROR) {                                                                                                                                                  \
+            Debug::log(ERR, "[GLES] Error in call at {}@{}: 0x{:x}", __LINE__,                                                                                                     \
+                       ([]() constexpr -> std::string { return std::string(__FILE__).substr(std::string(__FILE__).find_last_of('/') + 1); })(), err);                              \
+        }                                                                                                                                                                          \
+    }
+
+#define HYPRUTILS_FORWARD(ns, name)                                                                                                                                                \
+    namespace Hyprutils {                                                                                                                                                          \
+        namespace ns {                                                                                                                                                             \
+            class name;                                                                                                                                                            \
+        }                                                                                                                                                                          \
+    }
+
+#define AQUAMARINE_FORWARD(name)                                                                                                                                                   \
+    namespace Aquamarine {                                                                                                                                                         \
+        class name;                                                                                                                                                                \
+    }

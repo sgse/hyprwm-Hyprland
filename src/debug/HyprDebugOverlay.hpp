@@ -13,8 +13,8 @@ class CHyprMonitorDebugOverlay {
   public:
     int  draw(int offset);
 
-    void renderData(CMonitor* pMonitor, float µs);
-    void renderDataNoOverlay(CMonitor* pMonitor, float µs);
+    void renderData(CMonitor* pMonitor, float durationUs);
+    void renderDataNoOverlay(CMonitor* pMonitor, float durationUs);
     void frameData(CMonitor* pMonitor);
 
   private:
@@ -31,9 +31,10 @@ class CHyprMonitorDebugOverlay {
 
 class CHyprDebugOverlay {
   public:
+    CHyprDebugOverlay();
     void draw();
-    void renderData(CMonitor*, float µs);
-    void renderDataNoOverlay(CMonitor*, float µs);
+    void renderData(CMonitor*, float durationUs);
+    void renderDataNoOverlay(CMonitor*, float durationUs);
     void frameData(CMonitor*);
 
   private:
@@ -42,7 +43,7 @@ class CHyprDebugOverlay {
     cairo_surface_t*                                        m_pCairoSurface = nullptr;
     cairo_t*                                                m_pCairo        = nullptr;
 
-    CTexture                                                m_tTexture;
+    SP<CTexture>                                            m_pTexture;
 
     friend class CHyprMonitorDebugOverlay;
     friend class CHyprRenderer;

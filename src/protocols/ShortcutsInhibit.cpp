@@ -1,10 +1,9 @@
 #include "ShortcutsInhibit.hpp"
 #include <algorithm>
 #include "../Compositor.hpp"
+#include "core/Compositor.hpp"
 
-#define LOGM PROTO::shortcutsInhibit->protoLog
-
-CKeyboardShortcutsInhibitor::CKeyboardShortcutsInhibitor(SP<CZwpKeyboardShortcutsInhibitorV1> resource_, wlr_surface* surf) : resource(resource_), pSurface(surf) {
+CKeyboardShortcutsInhibitor::CKeyboardShortcutsInhibitor(SP<CZwpKeyboardShortcutsInhibitorV1> resource_, SP<CWLSurfaceResource> surf) : resource(resource_), pSurface(surf) {
     if (!resource->resource())
         return;
 
@@ -16,8 +15,8 @@ CKeyboardShortcutsInhibitor::CKeyboardShortcutsInhibitor(SP<CZwpKeyboardShortcut
     resource->sendActive();
 }
 
-wlr_surface* CKeyboardShortcutsInhibitor::surface() {
-    return pSurface;
+SP<CWLSurfaceResource> CKeyboardShortcutsInhibitor::surface() {
+    return pSurface.lock();
 }
 
 bool CKeyboardShortcutsInhibitor::good() {
@@ -46,10 +45,10 @@ void CKeyboardShortcutsInhibitProtocol::destroyInhibitor(CKeyboardShortcutsInhib
 }
 
 void CKeyboardShortcutsInhibitProtocol::onInhibit(CZwpKeyboardShortcutsInhibitManagerV1* pMgr, uint32_t id, wl_resource* surface, wl_resource* seat) {
-    wlr_surface* surf   = wlr_surface_from_resource(surface);
-    const auto   CLIENT = pMgr->client();
+    SP<CWLSurfaceResource> surf   = CWLSurfaceResource::fromResource(surface);
+    const auto             CLIENT = pMgr->client();
 
-    for (auto& in : m_vInhibitors) {
+    for (auto const& in : m_vInhibitors) {
         if (in->surface() != surf)
             continue;
 
@@ -72,7 +71,10 @@ bool CKeyboardShortcutsInhibitProtocol::isInhibited() {
     if (!g_pCompositor->m_pLastFocus)
         return false;
 
-    for (auto& in : m_vInhibitors) {
+    if (const auto PWINDOW = g_pCompositor->getWindowFromSurface(g_pCompositor->m_pLastFocus.lock()); PWINDOW && PWINDOW->m_sWindowData.noShortcutsInhibit.valueOrDefault())
+        return false;
+
+    for (auto const& in : m_vInhibitors) {
         if (in->surface() != g_pCompositor->m_pLastFocus)
             continue;
 

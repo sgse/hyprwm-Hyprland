@@ -1,8 +1,6 @@
 #include "XDGDecoration.hpp"
 #include <algorithm>
 
-#define LOGM PROTO::xdgDecoration->protoLog
-
 CXDGDecoration::CXDGDecoration(SP<CZxdgToplevelDecorationV1> resource_, wl_resource* toplevel) : resource(resource_), pToplevelResource(toplevel) {
     if (!resource->resource())
         return;
@@ -26,6 +24,8 @@ CXDGDecoration::CXDGDecoration(SP<CZxdgToplevelDecorationV1> resource_, wl_resou
         LOGM(LOG, "unsetMode. Sending MODE_SERVER_SIDE.");
         resource->sendConfigure(ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE);
     });
+
+    resource->sendConfigure(ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE);
 }
 
 bool CXDGDecoration::good() {

@@ -2,19 +2,21 @@
 
 #include "../defines.hpp"
 #include "../helpers/Timer.hpp"
-#include "../helpers/signal/Listener.hpp"
+#include "../helpers/signal/Signal.hpp"
 #include <cstdint>
 #include <unordered_map>
+#include <unordered_set>
 
 class CSessionLockSurface;
 class CSessionLock;
+class CWLSurfaceResource;
 
 struct SSessionLockSurface {
     SSessionLockSurface(SP<CSessionLockSurface> surface_);
 
     WP<CSessionLockSurface> surface;
-    wlr_surface*            pWlrSurface = nullptr;
-    uint64_t                iMonitorID  = -1;
+    WP<CWLSurfaceResource>  pWlrSurface;
+    uint64_t                iMonitorID = -1;
 
     bool                    mapped = false;
 
@@ -36,6 +38,9 @@ struct SSessionLock {
         CHyprSignalListener unlock;
         CHyprSignalListener destroy;
     } listeners;
+
+    bool                         m_hasSentLocked = false;
+    std::unordered_set<uint64_t> m_lockedMonitors;
 };
 
 class CSessionLockManager {
@@ -49,9 +54,12 @@ class CSessionLockManager {
 
     bool                 isSessionLocked();
     bool                 isSessionLockPresent();
-    bool                 isSurfaceSessionLock(wlr_surface*);
+    bool                 isSurfaceSessionLock(SP<CWLSurfaceResource>);
+    bool                 anySessionLockSurfacesPresent();
 
     void                 removeSessionLockSurface(SSessionLockSurface*);
+
+    void                 onLockscreenRenderedOnMonitor(uint64_t id);
 
   private:
     UP<SSessionLock> m_pSessionLock;

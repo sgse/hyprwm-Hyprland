@@ -1,7 +1,8 @@
 #include "PointerGestures.hpp"
 #include "../Compositor.hpp"
-
-#define LOGM PROTO::pointerGestures->protoLog
+#include "../managers/SeatManager.hpp"
+#include "core/Seat.hpp"
+#include "core/Compositor.hpp"
 
 CPointerGestureSwipe::CPointerGestureSwipe(SP<CZwpPointerGestureSwipeV1> resource_) : resource(resource_) {
     if (!resource->resource())
@@ -103,28 +104,28 @@ void CPointerGesturesProtocol::onGetHoldGesture(CZwpPointerGesturesV1* pMgr, uin
 }
 
 void CPointerGesturesProtocol::swipeBegin(uint32_t timeMs, uint32_t fingers) {
-    if (!g_pCompositor->m_sSeat.seat->pointer_state.focused_client)
+    if (!g_pSeatManager->state.pointerFocusResource)
         return;
 
-    const auto FOCUSEDCLIENT = g_pCompositor->m_sSeat.seat->pointer_state.focused_client->client;
+    const auto FOCUSEDCLIENT = g_pSeatManager->state.pointerFocusResource->client();
 
-    const auto SERIAL = wlr_seat_client_next_serial(g_pCompositor->m_sSeat.seat->pointer_state.focused_client);
+    const auto SERIAL = g_pSeatManager->nextSerial(g_pSeatManager->state.pointerFocusResource.lock());
 
-    for (auto& sw : m_vSwipes) {
+    for (auto const& sw : m_vSwipes) {
         if (sw->resource->client() != FOCUSEDCLIENT)
             continue;
 
-        sw->resource->sendBegin(SERIAL, timeMs, g_pCompositor->m_sSeat.seat->pointer_state.focused_surface->resource, fingers);
+        sw->resource->sendBegin(SERIAL, timeMs, g_pSeatManager->state.pointerFocus->getResource()->resource(), fingers);
     }
 }
 
 void CPointerGesturesProtocol::swipeUpdate(uint32_t timeMs, const Vector2D& delta) {
-    if (!g_pCompositor->m_sSeat.seat->pointer_state.focused_client)
+    if (!g_pSeatManager->state.pointerFocusResource)
         return;
 
-    const auto FOCUSEDCLIENT = g_pCompositor->m_sSeat.seat->pointer_state.focused_client->client;
+    const auto FOCUSEDCLIENT = g_pSeatManager->state.pointerFocusResource->client();
 
-    for (auto& sw : m_vSwipes) {
+    for (auto const& sw : m_vSwipes) {
         if (sw->resource->client() != FOCUSEDCLIENT)
             continue;
 
@@ -133,14 +134,14 @@ void CPointerGesturesProtocol::swipeUpdate(uint32_t timeMs, const Vector2D& delt
 }
 
 void CPointerGesturesProtocol::swipeEnd(uint32_t timeMs, bool cancelled) {
-    if (!g_pCompositor->m_sSeat.seat->pointer_state.focused_client)
+    if (!g_pSeatManager->state.pointerFocusResource)
         return;
 
-    const auto FOCUSEDCLIENT = g_pCompositor->m_sSeat.seat->pointer_state.focused_client->client;
+    const auto FOCUSEDCLIENT = g_pSeatManager->state.pointerFocusResource->client();
 
-    const auto SERIAL = wlr_seat_client_next_serial(g_pCompositor->m_sSeat.seat->pointer_state.focused_client);
+    const auto SERIAL = g_pSeatManager->nextSerial(g_pSeatManager->state.pointerFocusResource.lock());
 
-    for (auto& sw : m_vSwipes) {
+    for (auto const& sw : m_vSwipes) {
         if (sw->resource->client() != FOCUSEDCLIENT)
             continue;
 
@@ -149,28 +150,28 @@ void CPointerGesturesProtocol::swipeEnd(uint32_t timeMs, bool cancelled) {
 }
 
 void CPointerGesturesProtocol::pinchBegin(uint32_t timeMs, uint32_t fingers) {
-    if (!g_pCompositor->m_sSeat.seat->pointer_state.focused_client)
+    if (!g_pSeatManager->state.pointerFocusResource)
         return;
 
-    const auto FOCUSEDCLIENT = g_pCompositor->m_sSeat.seat->pointer_state.focused_client->client;
+    const auto FOCUSEDCLIENT = g_pSeatManager->state.pointerFocusResource->client();
 
-    const auto SERIAL = wlr_seat_client_next_serial(g_pCompositor->m_sSeat.seat->pointer_state.focused_client);
+    const auto SERIAL = g_pSeatManager->nextSerial(g_pSeatManager->state.pointerFocusResource.lock());
 
-    for (auto& sw : m_vPinches) {
+    for (auto const& sw : m_vPinches) {
         if (sw->resource->client() != FOCUSEDCLIENT)
             continue;
 
-        sw->resource->sendBegin(SERIAL, timeMs, g_pCompositor->m_sSeat.seat->pointer_state.focused_surface->resource, fingers);
+        sw->resource->sendBegin(SERIAL, timeMs, g_pSeatManager->state.pointerFocus->getResource()->resource(), fingers);
     }
 }
 
 void CPointerGesturesProtocol::pinchUpdate(uint32_t timeMs, const Vector2D& delta, double scale, double rotation) {
-    if (!g_pCompositor->m_sSeat.seat->pointer_state.focused_client)
+    if (!g_pSeatManager->state.pointerFocusResource)
         return;
 
-    const auto FOCUSEDCLIENT = g_pCompositor->m_sSeat.seat->pointer_state.focused_client->client;
+    const auto FOCUSEDCLIENT = g_pSeatManager->state.pointerFocusResource->client();
 
-    for (auto& sw : m_vPinches) {
+    for (auto const& sw : m_vPinches) {
         if (sw->resource->client() != FOCUSEDCLIENT)
             continue;
 
@@ -179,14 +180,14 @@ void CPointerGesturesProtocol::pinchUpdate(uint32_t timeMs, const Vector2D& delt
 }
 
 void CPointerGesturesProtocol::pinchEnd(uint32_t timeMs, bool cancelled) {
-    if (!g_pCompositor->m_sSeat.seat->pointer_state.focused_client)
+    if (!g_pSeatManager->state.pointerFocusResource)
         return;
 
-    const auto FOCUSEDCLIENT = g_pCompositor->m_sSeat.seat->pointer_state.focused_client->client;
+    const auto FOCUSEDCLIENT = g_pSeatManager->state.pointerFocusResource->client();
 
-    const auto SERIAL = wlr_seat_client_next_serial(g_pCompositor->m_sSeat.seat->pointer_state.focused_client);
+    const auto SERIAL = g_pSeatManager->nextSerial(g_pSeatManager->state.pointerFocusResource.lock());
 
-    for (auto& sw : m_vPinches) {
+    for (auto const& sw : m_vPinches) {
         if (sw->resource->client() != FOCUSEDCLIENT)
             continue;
 
@@ -195,30 +196,30 @@ void CPointerGesturesProtocol::pinchEnd(uint32_t timeMs, bool cancelled) {
 }
 
 void CPointerGesturesProtocol::holdBegin(uint32_t timeMs, uint32_t fingers) {
-    if (!g_pCompositor->m_sSeat.seat->pointer_state.focused_client)
+    if (!g_pSeatManager->state.pointerFocusResource)
         return;
 
-    const auto FOCUSEDCLIENT = g_pCompositor->m_sSeat.seat->pointer_state.focused_client->client;
+    const auto FOCUSEDCLIENT = g_pSeatManager->state.pointerFocusResource->client();
 
-    const auto SERIAL = wlr_seat_client_next_serial(g_pCompositor->m_sSeat.seat->pointer_state.focused_client);
+    const auto SERIAL = g_pSeatManager->nextSerial(g_pSeatManager->state.pointerFocusResource.lock());
 
-    for (auto& sw : m_vHolds) {
+    for (auto const& sw : m_vHolds) {
         if (sw->resource->client() != FOCUSEDCLIENT)
             continue;
 
-        sw->resource->sendBegin(SERIAL, timeMs, g_pCompositor->m_sSeat.seat->pointer_state.focused_surface->resource, fingers);
+        sw->resource->sendBegin(SERIAL, timeMs, g_pSeatManager->state.pointerFocus->getResource()->resource(), fingers);
     }
 }
 
 void CPointerGesturesProtocol::holdEnd(uint32_t timeMs, bool cancelled) {
-    if (!g_pCompositor->m_sSeat.seat->pointer_state.focused_client)
+    if (!g_pSeatManager->state.pointerFocusResource)
         return;
 
-    const auto FOCUSEDCLIENT = g_pCompositor->m_sSeat.seat->pointer_state.focused_client->client;
+    const auto FOCUSEDCLIENT = g_pSeatManager->state.pointerFocusResource->client();
 
-    const auto SERIAL = wlr_seat_client_next_serial(g_pCompositor->m_sSeat.seat->pointer_state.focused_client);
+    const auto SERIAL = g_pSeatManager->nextSerial(g_pSeatManager->state.pointerFocusResource.lock());
 
-    for (auto& sw : m_vHolds) {
+    for (auto const& sw : m_vHolds) {
         if (sw->resource->client() != FOCUSEDCLIENT)
             continue;
 

@@ -7,6 +7,8 @@
 #include <errno.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <string.h>
+#include <cstring>
 
 namespace Systemd {
     int SdBooted(void) {
@@ -20,8 +22,8 @@ namespace Systemd {
     }
 
     int SdNotify(int unsetEnvironment, const char* state) {
-        int fd = socket(AF_UNIX, SOCK_DGRAM, 0);
-        if (fd == -1)
+        int fd = socket(AF_UNIX, SOCK_DGRAM | SOCK_CLOEXEC, 0);
+        if (fd < 0)
             return -errno;
 
         constexpr char envVar[] = "NOTIFY_SOCKET";
@@ -46,12 +48,12 @@ namespace Systemd {
         if (unixAddr.sun_path[0] == '@')
             unixAddr.sun_path[0] = '\0';
 
-        if (!connect(fd, (const sockaddr*)&unixAddr, sizeof(struct sockaddr_un)))
-            return 1;
+        if (connect(fd, (const sockaddr*)&unixAddr, sizeof(struct sockaddr_un)) < 0)
+            return -errno;
 
         // arbitrary value which seems to be enough for s-d messages
-        size_t stateLen = strnlen(state, 128);
-        if (write(fd, state, stateLen) >= 0)
+        ssize_t stateLen = strnlen(state, 128);
+        if (write(fd, state, stateLen) == stateLen)
             return 1;
 
         return -errno;
